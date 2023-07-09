@@ -1,10 +1,11 @@
 import { Box, Flex, Input } from "@chakra-ui/react";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 
 const App = () => {
   const mapRef = useRef(null);
   const searchInputRef = useRef(null);
   const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Load Google Maps script
@@ -16,43 +17,53 @@ const App = () => {
 
     // Initialize Google Maps when the script is loaded
     script.onload = () => {
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: { lat: 3.1473910391837303, lng: 101.69953520006527 },
-        zoom: 12,
-      });
+      try {
+        const map = new window.google.maps.Map(mapRef.current, {
+          center: { lat: 3.1473910391837303, lng: 101.69953520006527 },
+          zoom: 12,
+        });
 
-      // Create a search box and link it to the input element
-      const searchBox = new window.google.maps.places.SearchBox(
-        searchInputRef.current
-      );
-
-      // Listen for the event triggered when the user selects a prediction from the search box
-      searchBox.addListener("places_changed", () => {
-        const places = searchBox.getPlaces();
-
-        if (places.length === 0) {
+        // Check if autocomplete is available
+        if (!window.google.maps.places) {
+          setError("Autocomplete is not available. Please try again later.");
           return;
         }
 
-        // Clear any existing marker
-        if (map.marker) {
-          map.marker.setMap(null);
-        }
+        // Create a search box and link it to the input element
+        const searchBox = new window.google.maps.places.SearchBox(
+          searchInputRef.current
+        );
 
-        // Get the first place from the search results
-        const place = places[0];
+        // Listen for the event triggered when the user selects a prediction from the search box
+        searchBox.addListener("places_changed", () => {
+          const places = searchBox.getPlaces();
 
-        // Create a marker for the selected place
-        map.marker = new window.google.maps.Marker({
-          position: place.geometry.location,
-          map,
-          title: place.name,
+          if (places.length === 0) {
+            return;
+          }
+
+          // Clear any existing marker
+          if (map.marker) {
+            map.marker.setMap(null);
+          }
+
+          // Get the first place from the search results
+          const place = places[0];
+
+          // Create a marker for the selected place
+          map.marker = new window.google.maps.Marker({
+            position: place.geometry.location,
+            map,
+            title: place.name,
+          });
+
+          // Zoom to the selected place
+          map.setZoom(15);
+          map.setCenter(place.geometry.location);
         });
-
-        // Zoom to the selected place
-        map.setZoom(15);
-        map.setCenter(place.geometry.location);
-      });
+      } catch (error) {
+        setError("Error loading Google Maps");
+      }
     };
 
     // Clean up the Google Maps script when the component is unmounted
@@ -63,6 +74,21 @@ const App = () => {
 
   return (
     <Flex position="relative" flexDirection="column" alignItems="center" h="100vh" w="100vw">
+      {error ? (
+        <Box
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          p={4}
+          bgColor="red.500"
+          color="white"
+          fontWeight="bold"
+          textAlign="center"
+        >
+          {error}
+        </Box>
+      ) : null}
       <Box position="absolute" left={0} top={0} h="100%" w="100%">
         <div
           ref={mapRef}
